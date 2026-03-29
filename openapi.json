@@ -1,0 +1,980 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ClawFetch API",
+    "version": "1.0.0",
+    "description": "Web intelligence API for AI agents. Zero hallucinations — deterministic, typed,\nvalidated output pulled live from the web.\n\n## Payment\n\nClawFetch uses [x402](https://x402.org) micropayments (gasless USDC on Base).\nNo API keys, no subscriptions — just a wallet with USDC on Base mainnet.\n\n**How it works:**\n\n1. Client sends a request to an endpoint\n2. Server responds with `402 Payment Required` including a `X-PAYMENT` header\n   with the payment details (amount in USDC, recipient, network `eip155:8453`)\n3. Client signs an [EIP-3009](https://eips.ethereum.org/EIPS/eip-3009) `transferWithAuthorization`\n   for the exact USDC amount — gasless, no ETH needed\n4. Client retries the request with the signed payment in the `X-PAYMENT` header\n5. Server validates payment and returns the response\n\nThe `@x402/fetch` and `@clawfetch/sdk` libraries handle this flow automatically.\n\n## Network\n\n- **Chain:** Base mainnet (Chain ID 8453)\n- **USDC contract:** `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`\n- **Payment protocol:** x402 with EIP-3009 (gasless transfers)\n\n## SDKs\n\n- **TypeScript:** `@clawfetch/sdk` ([npm](https://www.npmjs.com/package/@clawfetch/sdk))\n- **Python:** `clawfetch` ([PyPI](https://pypi.org/project/clawfetch/))\n",
+    "contact": {
+      "name": "ClawFetch",
+      "url": "https://clawfetch.ai"
+    },
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.clawfetch.ai",
+      "description": "Production"
+    }
+  ],
+  "security": [
+    {
+      "x402": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Web Intelligence",
+      "description": "Core web data endpoints — fetch pages, render JS-heavy sites, extract structured data,\nand research topics across multiple sources.\n"
+    },
+    {
+      "name": "Domains",
+      "description": "Domain name availability checking and creative suggestion generation."
+    },
+    {
+      "name": "Status",
+      "description": "Health and status endpoints (free, no payment required)."
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Health check",
+        "description": "Check API availability and version. Free — no payment required.\n",
+        "tags": [
+          "Status"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/fetch": {
+      "post": {
+        "operationId": "fetchUrl",
+        "summary": "Fetch URL as markdown",
+        "description": "Fetch any URL and return clean, readable markdown. Uses server-side HTTP —\nno JavaScript rendering. Fastest and cheapest endpoint for static pages.\n",
+        "tags": [
+          "Web Intelligence"
+        ],
+        "x-price": "$0.001",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FetchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully fetched and converted to markdown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FetchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/render": {
+      "post": {
+        "operationId": "renderPage",
+        "summary": "JS-render a page",
+        "description": "Render a page using a headless stealth browser with JavaScript execution.\nUse for SPAs, React/Next.js apps, Twitter/X, dashboards — anything that\nrequires JS to produce content. Returns clean markdown after DOM settles.\n",
+        "tags": [
+          "Web Intelligence"
+        ],
+        "x-price": "$0.002",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully rendered and converted to markdown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/extract": {
+      "post": {
+        "operationId": "extractData",
+        "summary": "Extract structured data",
+        "description": "Extract typed, validated structured data from 17+ supported sites.\nOutput schema varies by extractor — always machine-readable JSON.\n\nCall `GET /extractors` to see the full list of supported sites and their schemas.\n",
+        "tags": [
+          "Web Intelligence"
+        ],
+        "x-price": "$0.003",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully extracted structured data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "404": {
+            "description": "Extractor not found for the given URL or extractor name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/research": {
+      "post": {
+        "operationId": "research",
+        "summary": "Multi-source research",
+        "description": "Research a topic across multiple web sources. Returns a synthesized report\nwith structured sections and source citations. Best for open-ended questions\nwhere you need breadth of coverage.\n",
+        "tags": [
+          "Web Intelligence"
+        ],
+        "x-price": "$0.010",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Research report with citations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/domains/check": {
+      "post": {
+        "operationId": "domainsCheck",
+        "summary": "Check domain availability",
+        "description": "Check whether one or more domain names are available for registration.\nReturns availability status and WHOIS data for registered domains.\n",
+        "tags": [
+          "Domains"
+        ],
+        "x-price": "$0.002",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DomainsCheckRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Domain availability results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainsCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/domains/suggest": {
+      "post": {
+        "operationId": "domainsSuggest",
+        "summary": "Suggest domain names",
+        "description": "Generate creative domain name suggestions for a brand, product, or keyword.\nEach suggestion includes an availability check.\n",
+        "tags": [
+          "Domains"
+        ],
+        "x-price": "$0.002",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DomainsSuggestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Domain name suggestions with availability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainsSuggestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/extractors": {
+      "get": {
+        "operationId": "listExtractors",
+        "summary": "List available extractors",
+        "description": "Returns the current list of all available structured data extractors,\nincluding supported URL patterns, output schemas, and descriptions.\n",
+        "tags": [
+          "Web Intelligence"
+        ],
+        "x-price": "$0.001",
+        "responses": {
+          "200": {
+            "description": "List of available extractors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractorsResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "x402": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-PAYMENT",
+        "description": "x402 payment header containing a signed EIP-3009 transferWithAuthorization\nfor gasless USDC payment on Base mainnet. Handled automatically by the\n@x402/fetch and @clawfetch/sdk libraries.\n"
+      }
+    },
+    "schemas": {
+      "FetchRequest": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to fetch and convert to markdown",
+            "examples": [
+              "https://docs.anthropic.com/en/docs/intro"
+            ]
+          },
+          "maxChars": {
+            "type": "integer",
+            "minimum": 100,
+            "description": "Maximum characters to return (truncates when exceeded)"
+          }
+        }
+      },
+      "RenderRequest": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to render with headless browser",
+            "examples": [
+              "https://app.uniswap.org"
+            ]
+          },
+          "maxChars": {
+            "type": "integer",
+            "minimum": 100,
+            "description": "Maximum characters to return (truncates when exceeded)"
+          },
+          "waitFor": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30000,
+            "default": 1000,
+            "description": "Milliseconds to wait after DOM load before capturing"
+          }
+        }
+      },
+      "ExtractRequest": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL from a supported site to extract data from",
+            "examples": [
+              "https://www.coingecko.com/en/coins/bitcoin"
+            ]
+          },
+          "extractor": {
+            "type": "string",
+            "description": "Extractor name to use. If omitted, the server will auto-detect based on URL.\nCall `GET /extractors` for the full list.\n",
+            "examples": [
+              "coingecko",
+              "github",
+              "twitter"
+            ]
+          }
+        }
+      },
+      "ResearchRequest": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 3,
+            "description": "Research question or topic",
+            "examples": [
+              "Latest developments in x402 payment protocol"
+            ]
+          },
+          "depth": {
+            "type": "string",
+            "enum": [
+              "quick",
+              "standard",
+              "deep"
+            ],
+            "default": "standard",
+            "description": "Research depth. `quick` uses fewer sources and returns faster.\n`deep` fetches more sources and provides more comprehensive analysis.\n"
+          }
+        }
+      },
+      "DomainsCheckRequest": {
+        "type": "object",
+        "required": [
+          "domains"
+        ],
+        "properties": {
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 50,
+            "description": "List of domain names to check availability for",
+            "examples": [
+              [
+                "clawfetch.ai",
+                "clawfetch.com",
+                "clawfetch.io"
+              ]
+            ]
+          }
+        }
+      },
+      "DomainsSuggestRequest": {
+        "type": "object",
+        "required": [
+          "keyword"
+        ],
+        "properties": {
+          "keyword": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Brand name, concept, or keyword to generate suggestions for",
+            "examples": [
+              "agentpay"
+            ]
+          },
+          "tlds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Preferred TLDs to include in suggestions",
+            "default": [
+              ".com",
+              ".io",
+              ".ai"
+            ],
+            "examples": [
+              [
+                ".ai",
+                ".io",
+                ".com"
+              ]
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 10,
+            "description": "Number of suggestions to generate"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "description": "API health status"
+          },
+          "version": {
+            "type": "string",
+            "description": "API version",
+            "examples": [
+              "1.2.0"
+            ]
+          }
+        }
+      },
+      "FetchResponse": {
+        "type": "object",
+        "required": [
+          "url",
+          "content"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The URL that was fetched (may differ from input if redirected)"
+          },
+          "title": {
+            "type": "string",
+            "description": "Page title if available"
+          },
+          "content": {
+            "type": "string",
+            "description": "Page content as clean markdown"
+          },
+          "contentType": {
+            "type": "string",
+            "description": "Original content type of the page",
+            "examples": [
+              "text/html"
+            ]
+          },
+          "cached": {
+            "type": "boolean",
+            "description": "Whether this response was served from cache"
+          }
+        }
+      },
+      "RenderResponse": {
+        "type": "object",
+        "required": [
+          "url",
+          "content"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The URL that was rendered"
+          },
+          "title": {
+            "type": "string",
+            "description": "Page title after JS execution"
+          },
+          "content": {
+            "type": "string",
+            "description": "Rendered page content as clean markdown"
+          },
+          "cached": {
+            "type": "boolean",
+            "description": "Whether this response was served from cache"
+          }
+        }
+      },
+      "ExtractResponse": {
+        "type": "object",
+        "required": [
+          "url",
+          "extractor",
+          "data"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The URL that was extracted from"
+          },
+          "extractor": {
+            "type": "string",
+            "description": "Name of the extractor that was used"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Extracted structured data. Schema varies by extractor.\nCall `GET /extractors` to see schemas for each extractor.\n"
+          },
+          "cached": {
+            "type": "boolean",
+            "description": "Whether this response was served from cache"
+          }
+        }
+      },
+      "ResearchResponse": {
+        "type": "object",
+        "required": [
+          "query",
+          "summary",
+          "sources"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The original research query"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Synthesized research summary"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "title",
+                "content"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Structured sections of the research report"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchSource"
+            },
+            "description": "Sources used in the research"
+          },
+          "cached": {
+            "type": "boolean",
+            "description": "Whether this response was served from cache"
+          }
+        }
+      },
+      "ResearchSource": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "snippet": {
+            "type": "string"
+          }
+        }
+      },
+      "DomainsCheckResponse": {
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DomainCheckResult"
+            }
+          }
+        }
+      },
+      "DomainCheckResult": {
+        "type": "object",
+        "required": [
+          "domain",
+          "available"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "The domain that was checked"
+          },
+          "available": {
+            "type": "boolean",
+            "description": "Whether the domain is available for registration"
+          },
+          "registrar": {
+            "type": "string",
+            "description": "Current registrar (if registered)"
+          },
+          "expires": {
+            "type": "string",
+            "format": "date",
+            "description": "Expiration date (if registered)"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if lookup failed for this domain"
+          }
+        }
+      },
+      "DomainsSuggestResponse": {
+        "type": "object",
+        "required": [
+          "keyword",
+          "suggestions"
+        ],
+        "properties": {
+          "keyword": {
+            "type": "string",
+            "description": "The keyword used for suggestion generation"
+          },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DomainSuggestion"
+            }
+          }
+        }
+      },
+      "DomainSuggestion": {
+        "type": "object",
+        "required": [
+          "domain",
+          "available"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "Suggested domain name"
+          },
+          "available": {
+            "type": "boolean",
+            "description": "Whether this domain is available"
+          },
+          "score": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Relevance score (1.0 = best match)"
+          }
+        }
+      },
+      "ExtractorsResponse": {
+        "type": "object",
+        "required": [
+          "extractors"
+        ],
+        "properties": {
+          "extractors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtractorInfo"
+            }
+          }
+        }
+      },
+      "ExtractorInfo": {
+        "type": "object",
+        "required": [
+          "name",
+          "domains",
+          "description",
+          "fields"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Extractor identifier to use in `/extract` requests",
+            "examples": [
+              "github",
+              "coingecko"
+            ]
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "URL domains this extractor supports",
+            "examples": [
+              [
+                "github.com"
+              ]
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of what this extractor provides"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of fields returned by this extractor"
+          },
+          "urlPattern": {
+            "type": "string",
+            "description": "URL pattern this extractor matches"
+          },
+          "schema": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "JSON Schema for the extractor output"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "message": {
+            "type": "string",
+            "description": "Additional error detail"
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request — check required fields and parameter types",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "PaymentRequired": {
+        "description": "Payment required. The response includes an `X-PAYMENT` header with payment details.\nSign an EIP-3009 `transferWithAuthorization` for the specified USDC amount on Base\nand retry the request with the signed payment in the `X-PAYMENT` header.\n\nThis is handled automatically by `@x402/fetch` and `@clawfetch/sdk`.\n",
+        "headers": {
+          "X-PAYMENT": {
+            "description": "JSON-encoded payment request with amount, recipient, and network",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "UnprocessableEntity": {
+        "description": "URL is unreachable — the target page is down or blocking requests",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many requests — back off and retry",
+        "headers": {
+          "Retry-After": {
+            "description": "Seconds to wait before retrying",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "Service temporarily unavailable — retry after a few seconds",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  }
+}
