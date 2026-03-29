@@ -13,7 +13,8 @@ from unittest.mock import MagicMock, patch, PropertyMock
 import httpx
 import pytest
 
-from clawfetch.client import ClawFetch, BASE_URL
+from clawfetch.client import ClawFetch, RetryOptions, BASE_URL
+from clawfetch.errors import ApiError, ClawFetchError, NetworkError, PaymentError, RateLimitError
 
 
 # ── Test constants ───────────────────────────────────────────────
@@ -130,12 +131,10 @@ class TestHealth:
                 assert result["status"] == "ok"
                 mock_get.assert_called_once_with(f"{MOCK_BASE_URL}/health")
 
-    def test_health_raises_on_error(self):
-        mock_resp = _mock_response(500, {"error": "internal"})
-
+    def test_health_raises_on_network_error(self):
         with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
-            with patch.object(cf._client, "get", return_value=mock_resp):
-                with pytest.raises(httpx.HTTPStatusError):
+            with patch.object(cf._client, "get", side_effect=httpx.ConnectError("refused")):
+                with pytest.raises(NetworkError):
                     cf.health()
 
 
@@ -548,32 +547,34 @@ class TestX402PaymentFlow:
 class TestErrorHandling:
     """Tests for HTTP error responses."""
 
-    def test_400_raises_httpstatuserror(self):
+    def test_400_raises_api_error(self):
         mock_resp = _mock_response(400, {"error": "Invalid URL format"})
 
         with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
             with patch.object(cf._client, "request", return_value=mock_resp):
-                with pytest.raises(httpx.HTTPStatusError):
+                with pytest.raises(ApiError) as exc_info:
                     cf.fetch("not-a-url")
+                assert exc_info.value.status_code == 400
 
-    def test_500_raises_httpstatuserror(self):
+    def test_500_raises_api_error(self):
         mock_resp = _mock_response(500, {"error": "Internal Server Error"})
 
-        with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
+        with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL, retry=False) as cf:
             with patch.object(cf._client, "request", return_value=mock_resp):
-                with pytest.raises(httpx.HTTPStatusError):
+                with pytest.raises(ApiError) as exc_info:
                     cf.fetch("https://example.com")
+                assert exc_info.value.status_code == 500
 
-    def test_network_error_propagates(self):
-        with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
+    def test_network_error_wrapped(self):
+        with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL, retry=False) as cf:
             with patch.object(cf._client, "request", side_effect=httpx.ConnectError("Connection refused")):
-                with pytest.raises(httpx.ConnectError):
+                with pytest.raises(NetworkError):
                     cf.fetch("https://example.com")
 
-    def test_timeout_error_propagates(self):
-        with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
+    def test_timeout_error_wrapped(self):
+        with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL, retry=False) as cf:
             with patch.object(cf._client, "request", side_effect=httpx.ReadTimeout("Timed out")):
-                with pytest.raises(httpx.ReadTimeout):
+                with pytest.raises(NetworkError):
                     cf.fetch("https://example.com")
 
     def test_402_without_payment_header_tries_body(self):
