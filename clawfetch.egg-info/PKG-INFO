@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: clawfetch
-Version: 0.1.0
+Version: 0.2.0
 Summary: Python SDK for ClawFetch — Web Intelligence API for AI Agents (x402-native)
 License: MIT
 Project-URL: Homepage, https://api.clawfetch.ai
@@ -23,6 +23,111 @@ Requires-Dist: pytest-mock>=3.15; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.24.0; extra == "dev"
 
 # clawfetch
+
+Python SDK for [ClawFetch](https://api.clawfetch.ai) — Web Intelligence API for AI Agents.
+
+Pay-per-request via [x402](https://x402.org) (gasless USDC on Base). No API keys, no subscriptions.
+
+## Install
+
+```bash
+pip install clawfetch
+```
+
+## Quick Start
+
+### Sync
+
+```python
+from clawfetch import ClawFetch
+
+with ClawFetch(private_key="0x...") as cf:
+    # Fetch any URL as clean markdown ($0.001)
+    page = cf.fetch("https://example.com")
+
+    # Extract structured data ($0.003)
+    btc = cf.extract("https://coingecko.com/en/coins/bitcoin")
+    print(btc["data"])
+
+    # Multi-source research ($0.01)
+    report = cf.research("latest AI agent frameworks")
+```
+
+### Async
+
+```python
+import asyncio
+from clawfetch import AsyncClawFetch
+
+async def main():
+    async with AsyncClawFetch(private_key="0x...") as cf:
+        page = await cf.fetch("https://example.com")
+        btc = await cf.extract("https://coingecko.com/en/coins/bitcoin")
+        report = await cf.research("latest AI agent frameworks")
+
+asyncio.run(main())
+```
+
+Both clients have identical APIs — all 7 endpoints, full x402 payment flow, retry with exponential backoff, and typed error hierarchy.
+
+## API
+
+| Method | Price | Description |
+|--------|-------|-------------|
+| `fetch(url)` | $0.001 | URL → clean markdown |
+| `render(url)` | $0.002 | JS-rendered page → markdown |
+| `extract(url)` | $0.003 | Structured data from 17+ sites |
+| `research(topic)` | $0.010 | Multi-source topic research |
+| `domains_check(domains)` | $0.002 | Domain availability check |
+| `domains_suggest(query)` | $0.002 | Domain name suggestions |
+| `parse(source)` | $0.002 | Office document (docx/pptx/xlsx/pdf/…) → markdown |
+| `extractors()` | $0.001 | List available extractors |
+| `health()` | Free | API status check |
+
+## Error Handling
+
+```python
+from clawfetch import (
+    ClawFetch,
+    ClawFetchError,    # Base class
+    PaymentError,      # 402 — insufficient USDC
+    NetworkError,      # Connection/timeout failures
+    RateLimitError,    # 429 — includes retry_after_ms
+    ApiError,          # Other 4xx/5xx errors
+)
+```
+
+## Configuration
+
+```python
+from clawfetch import ClawFetch, RetryOptions
+
+cf = ClawFetch(
+    private_key="0x...",
+    base_url="https://api.clawfetch.ai",  # default
+    timeout=30.0,                          # seconds
+    retry=RetryOptions(
+        max_retries=3,
+        initial_delay_ms=500,
+        max_delay_ms=10000,
+        backoff_multiplier=2.0,
+    ),
+    debug=False,
+)
+```
+
+## Requirements
+
+- Python 3.9+
+- A wallet with USDC on Base (even $1 gives you 1,000+ requests)
+
+## License
+
+MIT
+
+---
+
+# Original README below
 
 Python SDK for [ClawFetch](https://api.clawfetch.ai) — Web Intelligence API for AI Agents.
 

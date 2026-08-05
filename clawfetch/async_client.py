@@ -192,6 +192,39 @@ class AsyncClawFetch:
             body["tlds"] = tlds
         return await self._paid_post("/domains/suggest", body)
 
+    async def parse(
+        self,
+        source: str | bytes,
+        *,
+        filename: str | None = None,
+        format: str | None = None,
+    ) -> dict:
+        """Parse an office document into GitHub-Flavored Markdown ($0.002).
+
+        Supports docx, pptx, xlsx, pdf, odt, ods, odp, rtf, epub, csv, doc, ppt.
+        No OCR: scanned/image-only PDFs are rejected with HTTP 422.
+
+        Args:
+            source: A document URL (http/https) or raw document bytes.
+            filename: Optional filename hint used for format detection.
+            format: Optional explicit format override (e.g. "csv").
+
+        Returns:
+            Dict with markdown, format, and chars fields.
+        """
+        import base64 as _b64
+
+        body: dict = {}
+        if isinstance(source, bytes):
+            body["base64"] = _b64.b64encode(source).decode()
+        else:
+            body["url"] = source
+        if filename:
+            body["filename"] = filename
+        if format:
+            body["format"] = format
+        return await self._paid_post("/parse", body)
+
     async def extractors(self) -> list[dict]:
         """List available extractors ($0.001).
 

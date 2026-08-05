@@ -56,6 +56,7 @@ Both clients have identical APIs — all 7 endpoints, full x402 payment flow, re
 | `research(topic)` | $0.010 | Multi-source topic research |
 | `domains_check(domains)` | $0.002 | Domain availability check |
 | `domains_suggest(query)` | $0.002 | Domain name suggestions |
+| `parse(source)` | $0.002 | Office document (docx/pptx/xlsx/pdf/…) → markdown |
 | `extractors()` | $0.001 | List available extractors |
 | `health()` | Free | API status check |
 

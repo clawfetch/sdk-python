@@ -5,6 +5,11 @@ All notable changes to the `clawfetch` Python SDK will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-08-05
+
+### Added
+- `parse(source, *, filename=None, format=None)` on both `ClawFetch` and `AsyncClawFetch` — parse office documents (docx, pptx, xlsx, pdf, odt, ods, odp, rtf, epub, csv, doc, ppt) into GitHub-Flavored Markdown via the new `POST /parse` endpoint ($0.002). Accepts a document URL or raw `bytes`. No OCR — scanned/image-only PDFs return HTTP 422.
+
 ## [0.1.0] - 2026-03-29
 
 ### Added
