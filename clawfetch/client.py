@@ -148,7 +148,7 @@ class ClawFetch:
         return self._paid_post("/fetch", body)
 
     def render(self, url: str, *, max_chars: int | None = None) -> dict:
-        """Render JS-heavy page with stealth browser ($0.002).
+        """Render JS-heavy page with stealth browser ($0.005).
 
         Args:
             url: URL to render.
@@ -163,7 +163,7 @@ class ClawFetch:
         return self._paid_post("/render", body)
 
     def extract(self, url: str) -> dict:
-        """Extract structured data from supported URL ($0.003).
+        """Extract structured data from supported URL ($0.008).
 
         Args:
             url: URL to extract from (must match a supported extractor).
@@ -174,7 +174,7 @@ class ClawFetch:
         return self._paid_post("/extract", {"url": url})
 
     def research(self, topic: str, *, sources: int | None = None) -> dict:
-        """Multi-source research on a topic ($0.01).
+        """Multi-source research on a topic ($0.02).
 
         Args:
             topic: Research topic/query.
@@ -189,7 +189,7 @@ class ClawFetch:
         return self._paid_post("/research", body)
 
     def domains_check(self, domains: list[str]) -> dict:
-        """Check domain availability ($0.002).
+        """Check domain availability ($0.008).
 
         Args:
             domains: List of domain names to check.
@@ -200,7 +200,7 @@ class ClawFetch:
         return self._paid_post("/domains/check", {"domains": domains})
 
     def domains_suggest(self, query: str, *, tlds: list[str] | None = None) -> dict:
-        """Generate domain suggestions ($0.002).
+        """Generate domain suggestions ($0.008).
 
         Args:
             query: Topic or keyword for domain suggestions.
@@ -221,7 +221,7 @@ class ClawFetch:
         filename: str | None = None,
         format: str | None = None,
     ) -> dict:
-        """Parse an office document into GitHub-Flavored Markdown ($0.002).
+        """Parse an office document into GitHub-Flavored Markdown ($0.005).
 
         Supports docx, pptx, xlsx, pdf, odt, ods, odp, rtf, epub, csv, doc, ppt.
         No OCR: scanned/image-only PDFs are rejected with HTTP 422.

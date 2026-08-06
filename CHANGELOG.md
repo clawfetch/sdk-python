@@ -5,6 +5,11 @@ All notable changes to the `clawfetch` Python SDK will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-08-06
+
+### Changed
+- Documented prices updated to match the live API: `render()` $0.005, `extract()` $0.008, `parse()` $0.005, `research()` $0.02, `domains_check()`/`domains_suggest()` $0.003. `fetch()` and `extractors()` unchanged at $0.001.
+
 ## [0.2.0] - 2026-08-05
 
 ### Added

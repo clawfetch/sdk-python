@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clawfetch"
-version = "0.2.0"
+version = "0.2.1"
 description = "Python SDK for ClawFetch — Web Intelligence API for AI Agents (x402-native)"
 readme = "README.md"
 license = {text = "MIT"}

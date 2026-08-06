@@ -21,11 +21,11 @@ with ClawFetch(private_key="0x...") as cf:
     # Fetch any URL as clean markdown ($0.001)
     page = cf.fetch("https://example.com")
 
-    # Extract structured data ($0.003)
+    # Extract structured data ($0.008)
     btc = cf.extract("https://coingecko.com/en/coins/bitcoin")
     print(btc["data"])
 
-    # Multi-source research ($0.01)
+    # Multi-source research ($0.02)
     report = cf.research("latest AI agent frameworks")
 ```
 
@@ -51,12 +51,12 @@ Both clients have identical APIs — all 7 endpoints, full x402 payment flow, re
 | Method | Price | Description |
 |--------|-------|-------------|
 | `fetch(url)` | $0.001 | URL → clean markdown |
-| `render(url)` | $0.002 | JS-rendered page → markdown |
-| `extract(url)` | $0.003 | Structured data from 17+ sites |
-| `research(topic)` | $0.010 | Multi-source topic research |
-| `domains_check(domains)` | $0.002 | Domain availability check |
-| `domains_suggest(query)` | $0.002 | Domain name suggestions |
-| `parse(source)` | $0.002 | Office document (docx/pptx/xlsx/pdf/…) → markdown |
+| `render(url)` | $0.005 | JS-rendered page → markdown |
+| `extract(url)` | $0.008 | Structured data from 17+ sites |
+| `research(topic)` | $0.02 | Multi-source topic research |
+| `domains_check(domains)` | $0.008 | Domain availability check |
+| `domains_suggest(query)` | $0.008 | Domain name suggestions |
+| `parse(source)` | $0.005 | Office document (docx/pptx/xlsx/pdf/…) → markdown |
 | `extractors()` | $0.001 | List available extractors |
 | `health()` | Free | API status check |
 
@@ -125,17 +125,17 @@ cf = ClawFetch(private_key="0x...")
 # Fetch any URL as clean markdown ($0.001)
 page = cf.fetch("https://example.com")
 
-# Extract structured data ($0.003)
+# Extract structured data ($0.008)
 btc = cf.extract("https://coingecko.com/en/coins/bitcoin")
 print(btc["data"])  # {'name': 'Bitcoin', 'price': 98432.12, ...}
 
-# JS-rendered pages ($0.002)
+# JS-rendered pages ($0.005)
 rendered = cf.render("https://app.uniswap.org")
 
-# Multi-source research ($0.01)
+# Multi-source research ($0.02)
 report = cf.research("latest AI agent frameworks")
 
-# Domain availability ($0.002)
+# Domain availability ($0.008)
 domains = cf.domains_check(["coolstartup.com", "coolstartup.ai"])
 
 # List extractors ($0.001)
