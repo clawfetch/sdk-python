@@ -267,77 +267,149 @@ class TestAsyncExtract:
 
 
 class TestAsyncResearch:
-    """Tests for cf.research()."""
+    """Tests for cf.research() — wire body must match server.mjs POST /research."""
 
     @pytest.mark.asyncio
-    async def test_research_returns_results(self):
+    async def test_research_sends_query_not_topic(self):
         research_data = {
-            "topic": "x402",
-            "summary": "x402 enables micropayments...",
-            "sources": [{"url": "https://x402.org", "title": "x402"}],
+            "query": "x402 payment protocol",
+            "sources": 1,
+            "results": [{"url": "https://x402.org", "title": "x402", "text": "Protocol spec"}],
         }
         mock_resp = _mock_response(200, research_data)
 
         async with AsyncClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
-            with patch.object(cf._client, "request", new_callable=AsyncMock, return_value=mock_resp):
-                result = await cf.research("x402")
-                assert result["summary"]
-                assert len(result["sources"]) > 0
+            with patch.object(cf._client, "request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
+                result = await cf.research("x402 payment protocol")
+                assert mock_req.call_args.kwargs["json"] == {"query": "x402 payment protocol"}
+                assert result == research_data
 
     @pytest.mark.asyncio
-    async def test_research_with_sources_option(self):
-        mock_resp = _mock_response(200, {"topic": "t", "summary": "s", "sources": []})
+    async def test_research_max_results_sends_max_results(self):
+        mock_resp = _mock_response(200, {"query": "test", "sources": 0, "results": []})
 
         async with AsyncClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
-            mock_request = AsyncMock(return_value=mock_resp)
-            with patch.object(cf._client, "request", mock_request):
+            with patch.object(cf._client, "request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
+                await cf.research("test", max_results=3)
+                assert mock_req.call_args.kwargs["json"] == {"query": "test", "maxResults": 3}
+
+    @pytest.mark.asyncio
+    async def test_research_sources_is_deprecated_alias_for_max_results(self):
+        mock_resp = _mock_response(200, {"query": "test", "sources": 0, "results": []})
+
+        async with AsyncClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
+            with patch.object(cf._client, "request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
                 await cf.research("test", sources=5)
-                assert mock_request.call_args.kwargs["json"]["sources"] == 5
+                assert mock_req.call_args.kwargs["json"] == {"query": "test", "maxResults": 5}
 
 
 # ── Domain Endpoints Tests ───────────────────────────────────────
 
 
 class TestAsyncDomains:
-    """Tests for domain check and suggest endpoints."""
+    """Tests for domain endpoints — wire bodies must match server.mjs."""
 
     @pytest.mark.asyncio
-    async def test_domains_check(self):
+    async def test_domains_check_sends_domains_and_returns_live_shape(self):
         check_data = {
-            "domains": [
-                {"domain": "test.com", "available": False},
-                {"domain": "test.ai", "available": True},
-            ]
+            "checked": 3, "available": 1, "taken": 1,
+            "results": [
+                {"domain": "coolstartup.com", "available": False},
+                {"domain": "coolstartup.ai", "available": True},
+                {"domain": "coolstartup.io", "available": None, "error": "WHOIS timeout"},
+            ],
         }
         mock_resp = _mock_response(200, check_data)
 
         async with AsyncClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
-            with patch.object(cf._client, "request", new_callable=AsyncMock, return_value=mock_resp):
-                result = await cf.domains_check(["test.com", "test.ai"])
-                assert len(result["domains"]) == 2
+            with patch.object(cf._client, "request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
+                result = await cf.domains_check(["coolstartup.com", "coolstartup.ai", "coolstartup.io"])
+                assert mock_req.call_args.kwargs["json"] == {
+                    "domains": ["coolstartup.com", "coolstartup.ai", "coolstartup.io"]
+                }
+                assert result == check_data
 
     @pytest.mark.asyncio
-    async def test_domains_suggest(self):
+    async def test_domains_suggest_wraps_single_keyword_in_list(self):
         suggest_data = {
-            "query": "ai coding",
-            "suggestions": [{"domain": "aicode.ai", "available": True}],
+            "keywords": ["agent"], "generated": 40, "checked": 2,
+            "available": ["agenthq.ai"],
+            "allResults": [
+                {"domain": "agenthq.ai", "available": True},
+                {"domain": "agent.com", "available": False},
+            ],
         }
         mock_resp = _mock_response(200, suggest_data)
 
         async with AsyncClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
-            with patch.object(cf._client, "request", new_callable=AsyncMock, return_value=mock_resp):
-                result = await cf.domains_suggest("ai coding")
-                assert result["query"] == "ai coding"
+            with patch.object(cf._client, "request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
+                result = await cf.domains_suggest("agent")
+                assert mock_req.call_args.kwargs["json"] == {"keywords": ["agent"]}
+                assert result == suggest_data
 
     @pytest.mark.asyncio
-    async def test_domains_suggest_with_tlds(self):
-        mock_resp = _mock_response(200, {"query": "t", "suggestions": []})
+    async def test_domains_suggest_splits_string_and_normalizes_tlds(self):
+        mock_resp = _mock_response(200, {"keywords": [], "generated": 0, "checked": 0, "available": [], "allResults": []})
 
         async with AsyncClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
-            mock_request = AsyncMock(return_value=mock_resp)
-            with patch.object(cf._client, "request", mock_request):
-                await cf.domains_suggest("test", tlds=[".ai", ".dev"])
-                assert mock_request.call_args.kwargs["json"]["tlds"] == [".ai", ".dev"]
+            with patch.object(cf._client, "request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
+                await cf.domains_suggest("ai, coding", tlds=[".AI", "dev"], max_check=2)
+                assert mock_req.call_args.kwargs["json"] == {
+                    "keywords": ["ai", "coding"], "tlds": ["ai", "dev"], "maxCheck": 2
+                }
+
+    @pytest.mark.asyncio
+    async def test_domains_suggest_accepts_list(self):
+        mock_resp = _mock_response(200, {"keywords": [], "generated": 0, "checked": 0, "available": [], "allResults": []})
+
+        async with AsyncClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
+            with patch.object(cf._client, "request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
+                await cf.domains_suggest(["agent", "grid"])
+                assert mock_req.call_args.kwargs["json"] == {"keywords": ["agent", "grid"]}
+
+
+# ── Wire contract tests for the remaining POST endpoints ─────────
+
+
+class TestAsyncWireContracts:
+    """Exact JSON bodies for fetch/render/extract/parse, per server.mjs."""
+
+    async def _body(self, call):
+        mock_resp = _mock_response(200, {})
+        async with AsyncClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
+            with patch.object(cf._client, "request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
+                await call(cf)
+                return mock_req.call_args.args[1], mock_req.call_args.kwargs["json"]
+
+    @pytest.mark.asyncio
+    async def test_fetch_body(self):
+        assert await self._body(lambda cf: cf.fetch("https://a.b", max_chars=500)) == (
+            f"{MOCK_BASE_URL}/fetch", {"url": "https://a.b", "maxChars": 500})
+
+    @pytest.mark.asyncio
+    async def test_render_body_with_wait_for(self):
+        assert await self._body(lambda cf: cf.render("https://a.b", max_chars=500, wait_for="#app")) == (
+            f"{MOCK_BASE_URL}/render", {"url": "https://a.b", "maxChars": 500, "waitFor": "#app"})
+
+    @pytest.mark.asyncio
+    async def test_extract_body_with_type(self):
+        assert await self._body(lambda cf: cf.extract("https://github.com/a/b", type="github")) == (
+            f"{MOCK_BASE_URL}/extract", {"url": "https://github.com/a/b", "type": "github"})
+
+    @pytest.mark.asyncio
+    async def test_extract_body_without_type(self):
+        assert await self._body(lambda cf: cf.extract("https://github.com/a/b")) == (
+            f"{MOCK_BASE_URL}/extract", {"url": "https://github.com/a/b"})
+
+    @pytest.mark.asyncio
+    async def test_parse_url_body(self):
+        assert await self._body(lambda cf: cf.parse("https://a.b/x.docx", format="docx")) == (
+            f"{MOCK_BASE_URL}/parse", {"url": "https://a.b/x.docx", "format": "docx"})
+
+    @pytest.mark.asyncio
+    async def test_parse_bytes_body(self):
+        assert await self._body(lambda cf: cf.parse(b"a,b\n1,2", filename="t.csv")) == (
+            f"{MOCK_BASE_URL}/parse", {"base64": base64.b64encode(b"a,b\n1,2").decode(), "filename": "t.csv"})
 
 
 # ── Extractors Endpoint Tests ────────────────────────────────────

@@ -273,112 +273,136 @@ class TestExtract:
 
 
 class TestResearch:
-    """Tests for cf.research() — multi-source topic research."""
+    """Tests for cf.research() — wire body must match server.mjs POST /research."""
 
-    def test_research_returns_results(self):
+    def test_research_sends_query_not_topic(self):
         research_data = {
-            "topic": "x402 payment protocol",
-            "summary": "x402 enables HTTP-native micropayments...",
-            "sources": [
-                {"url": "https://x402.org", "title": "x402", "snippet": "Protocol spec"},
-                {"url": "https://github.com/coinbase/x402", "title": "GitHub", "snippet": "Reference impl"},
-            ],
+            "query": "x402 payment protocol",
+            "sources": 1,
+            "results": [{"url": "https://x402.org", "title": "x402", "text": "Protocol spec"}],
         }
         mock_resp = _mock_response(200, research_data)
 
         with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
-            with patch.object(cf._client, "request", return_value=mock_resp):
+            with patch.object(cf._client, "request", return_value=mock_resp) as mock_req:
                 result = cf.research("x402 payment protocol")
-                assert result["topic"] == "x402 payment protocol"
-                assert result["summary"]
-                assert len(result["sources"]) > 0
+                assert mock_req.call_args.kwargs["json"] == {"query": "x402 payment protocol"}
+                assert result == research_data
 
-    def test_research_with_sources_option(self):
-        research_data = {"topic": "test", "summary": "test", "sources": []}
-        mock_resp = _mock_response(200, research_data)
+    def test_research_max_results_sends_max_results(self):
+        mock_resp = _mock_response(200, {"query": "test", "sources": 0, "results": []})
+
+        with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
+            with patch.object(cf._client, "request", return_value=mock_resp) as mock_req:
+                cf.research("test", max_results=3)
+                assert mock_req.call_args.kwargs["json"] == {"query": "test", "maxResults": 3}
+
+    def test_research_sources_is_deprecated_alias_for_max_results(self):
+        mock_resp = _mock_response(200, {"query": "test", "sources": 0, "results": []})
 
         with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
             with patch.object(cf._client, "request", return_value=mock_resp) as mock_req:
                 cf.research("test", sources=5)
-                call_kwargs = mock_req.call_args
-                assert call_kwargs.kwargs["json"]["sources"] == 5
-
-    def test_research_without_sources_option(self):
-        research_data = {"topic": "test", "summary": "test", "sources": []}
-        mock_resp = _mock_response(200, research_data)
-
-        with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
-            with patch.object(cf._client, "request", return_value=mock_resp) as mock_req:
-                cf.research("test")
-                call_kwargs = mock_req.call_args
-                assert "sources" not in call_kwargs.kwargs["json"]
+                assert mock_req.call_args.kwargs["json"] == {"query": "test", "maxResults": 5}
 
 
 # ── Domain Endpoints Tests ───────────────────────────────────────
 
 
 class TestDomains:
-    """Tests for domain check and suggest endpoints."""
+    """Tests for domain endpoints — wire bodies must match server.mjs."""
 
-    def test_domains_check(self):
+    def test_domains_check_sends_domains_and_returns_live_shape(self):
         check_data = {
-            "domains": [
+            "checked": 3, "available": 1, "taken": 1,
+            "results": [
                 {"domain": "coolstartup.com", "available": False},
                 {"domain": "coolstartup.ai", "available": True},
-            ]
+                {"domain": "coolstartup.io", "available": None, "error": "WHOIS timeout"},
+            ],
         }
         mock_resp = _mock_response(200, check_data)
 
         with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
-            with patch.object(cf._client, "request", return_value=mock_resp):
-                result = cf.domains_check(["coolstartup.com", "coolstartup.ai"])
-                assert len(result["domains"]) == 2
-                assert result["domains"][0]["available"] is False
-                assert result["domains"][1]["available"] is True
-
-    def test_domains_check_sends_correct_body(self):
-        mock_resp = _mock_response(200, {"domains": []})
-
-        with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
             with patch.object(cf._client, "request", return_value=mock_resp) as mock_req:
-                cf.domains_check(["test.com", "test.ai"])
-                call_kwargs = mock_req.call_args
-                assert call_kwargs.kwargs["json"]["domains"] == ["test.com", "test.ai"]
+                result = cf.domains_check(["coolstartup.com", "coolstartup.ai", "coolstartup.io"])
+                assert mock_req.call_args.kwargs["json"] == {
+                    "domains": ["coolstartup.com", "coolstartup.ai", "coolstartup.io"]
+                }
+                assert result == check_data
 
-    def test_domains_suggest(self):
+    def test_domains_suggest_wraps_single_keyword_in_list(self):
         suggest_data = {
-            "query": "ai coding",
-            "suggestions": [
-                {"domain": "aicodinghelp.com", "available": True},
-                {"domain": "codeassist.ai", "available": True},
+            "keywords": ["agent"], "generated": 40, "checked": 2,
+            "available": ["agenthq.ai"],
+            "allResults": [
+                {"domain": "agenthq.ai", "available": True},
+                {"domain": "agent.com", "available": False},
             ],
         }
         mock_resp = _mock_response(200, suggest_data)
 
         with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
-            with patch.object(cf._client, "request", return_value=mock_resp):
-                result = cf.domains_suggest("ai coding")
-                assert result["query"] == "ai coding"
-                assert len(result["suggestions"]) > 0
-                assert result["suggestions"][0]["available"] is True
+            with patch.object(cf._client, "request", return_value=mock_resp) as mock_req:
+                result = cf.domains_suggest("agent")
+                assert mock_req.call_args.kwargs["json"] == {"keywords": ["agent"]}
+                assert result == suggest_data
 
-    def test_domains_suggest_with_tlds(self):
-        mock_resp = _mock_response(200, {"query": "test", "suggestions": []})
+    def test_domains_suggest_splits_string_and_normalizes_tlds(self):
+        mock_resp = _mock_response(200, {"keywords": [], "generated": 0, "checked": 0, "available": [], "allResults": []})
 
         with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
             with patch.object(cf._client, "request", return_value=mock_resp) as mock_req:
-                cf.domains_suggest("test", tlds=[".ai", ".dev"])
-                call_kwargs = mock_req.call_args
-                assert call_kwargs.kwargs["json"]["tlds"] == [".ai", ".dev"]
+                cf.domains_suggest("ai, coding", tlds=[".AI", "dev"], max_check=2)
+                assert mock_req.call_args.kwargs["json"] == {
+                    "keywords": ["ai", "coding"], "tlds": ["ai", "dev"], "maxCheck": 2
+                }
 
-    def test_domains_suggest_without_tlds(self):
-        mock_resp = _mock_response(200, {"query": "test", "suggestions": []})
+    def test_domains_suggest_accepts_list(self):
+        mock_resp = _mock_response(200, {"keywords": [], "generated": 0, "checked": 0, "available": [], "allResults": []})
 
         with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
             with patch.object(cf._client, "request", return_value=mock_resp) as mock_req:
-                cf.domains_suggest("test")
-                call_kwargs = mock_req.call_args
-                assert "tlds" not in call_kwargs.kwargs["json"]
+                cf.domains_suggest(["agent", "grid"])
+                assert mock_req.call_args.kwargs["json"] == {"keywords": ["agent", "grid"]}
+
+
+# ── Wire contract tests for the remaining POST endpoints ─────────
+
+
+class TestWireContracts:
+    """Exact JSON bodies for fetch/render/extract/parse, per server.mjs."""
+
+    def _body(self, call):
+        mock_resp = _mock_response(200, {})
+        with ClawFetch(private_key=TEST_PRIVATE_KEY, base_url=MOCK_BASE_URL) as cf:
+            with patch.object(cf._client, "request", return_value=mock_resp) as mock_req:
+                call(cf)
+                return mock_req.call_args.args[1], mock_req.call_args.kwargs["json"]
+
+    def test_fetch_body(self):
+        assert self._body(lambda cf: cf.fetch("https://a.b", max_chars=500)) == (
+            f"{MOCK_BASE_URL}/fetch", {"url": "https://a.b", "maxChars": 500})
+
+    def test_render_body_with_wait_for(self):
+        assert self._body(lambda cf: cf.render("https://a.b", max_chars=500, wait_for="#app")) == (
+            f"{MOCK_BASE_URL}/render", {"url": "https://a.b", "maxChars": 500, "waitFor": "#app"})
+
+    def test_extract_body_with_type(self):
+        assert self._body(lambda cf: cf.extract("https://github.com/a/b", type="github")) == (
+            f"{MOCK_BASE_URL}/extract", {"url": "https://github.com/a/b", "type": "github"})
+
+    def test_extract_body_without_type(self):
+        assert self._body(lambda cf: cf.extract("https://github.com/a/b")) == (
+            f"{MOCK_BASE_URL}/extract", {"url": "https://github.com/a/b"})
+
+    def test_parse_url_body(self):
+        assert self._body(lambda cf: cf.parse("https://a.b/x.docx", format="docx")) == (
+            f"{MOCK_BASE_URL}/parse", {"url": "https://a.b/x.docx", "format": "docx"})
+
+    def test_parse_bytes_body(self):
+        assert self._body(lambda cf: cf.parse(b"a,b\n1,2", filename="t.csv")) == (
+            f"{MOCK_BASE_URL}/parse", {"base64": base64.b64encode(b"a,b\n1,2").decode(), "filename": "t.csv"})
 
 
 # ── Extractors Endpoint Tests ────────────────────────────────────

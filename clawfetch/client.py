@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import random
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -134,7 +135,7 @@ class ClawFetch:
             max_chars: Maximum characters to return.
 
         Returns:
-            Dict with url, title, content, contentType fields.
+            Dict with url, title, status, contentType, text, length fields.
 
         Raises:
             PaymentError: If x402 payment fails.
@@ -147,71 +148,103 @@ class ClawFetch:
             body["maxChars"] = max_chars
         return self._paid_post("/fetch", body)
 
-    def render(self, url: str, *, max_chars: int | None = None) -> dict:
+    def render(
+        self, url: str, *, max_chars: int | None = None, wait_for: str | None = None
+    ) -> dict:
         """Render JS-heavy page with stealth browser ($0.005).
 
         Args:
             url: URL to render.
             max_chars: Maximum characters to return.
+            wait_for: Optional CSS selector to wait for before extracting text.
 
         Returns:
-            Dict with url, title, content fields.
+            Dict with url, title, description, text fields.
         """
         body: dict = {"url": url}
         if max_chars:
             body["maxChars"] = max_chars
+        if wait_for:
+            body["waitFor"] = wait_for
         return self._paid_post("/render", body)
 
-    def extract(self, url: str) -> dict:
+    def extract(self, url: str, *, type: str | None = None) -> dict:
         """Extract structured data from supported URL ($0.008).
 
         Args:
             url: URL to extract from (must match a supported extractor).
+            type: Optional extractor name (e.g. "github"); auto-detected from
+                the URL when omitted.
 
         Returns:
-            Dict with url, extractor, data fields.
+            Dict with a ``type`` field (extractor name) plus extractor-specific fields.
         """
-        return self._paid_post("/extract", {"url": url})
+        body: dict = {"url": url}
+        if type:
+            body["type"] = type
+        return self._paid_post("/extract", body)
 
-    def research(self, topic: str, *, sources: int | None = None) -> dict:
+    def research(
+        self,
+        topic: str,
+        *,
+        max_results: int | None = None,
+        sources: int | None = None,
+    ) -> dict:
         """Multi-source research on a topic ($0.02).
 
         Args:
-            topic: Research topic/query.
-            sources: Number of sources to consult.
+            topic: Research topic/query (sent as ``query`` on the wire).
+            max_results: Number of sources to fetch (server caps at 10, default 5).
+            sources: Deprecated alias for ``max_results``.
 
         Returns:
-            Dict with topic, summary, sources fields.
+            Dict with query, sources (count) and results (list of fetched pages).
         """
-        body: dict = {"topic": topic}
-        if sources:
-            body["sources"] = sources
+        body: dict = {"query": topic}
+        max_results = max_results or sources
+        if max_results:
+            body["maxResults"] = max_results
         return self._paid_post("/research", body)
 
     def domains_check(self, domains: list[str]) -> dict:
-        """Check domain availability ($0.008).
+        """Check domain availability ($0.003).
 
         Args:
-            domains: List of domain names to check.
+            domains: List of domain names to check (server checks at most 20).
 
         Returns:
-            Dict with domains list, each having domain and available fields.
+            Dict with checked, available, taken counts and a results list of
+            {domain, available, ...}; available is None (with error) when a
+            lookup fails.
         """
         return self._paid_post("/domains/check", {"domains": domains})
 
-    def domains_suggest(self, query: str, *, tlds: list[str] | None = None) -> dict:
-        """Generate domain suggestions ($0.008).
+    def domains_suggest(
+        self,
+        keywords: str | list[str],
+        *,
+        tlds: list[str] | None = None,
+        max_check: int | None = None,
+    ) -> dict:
+        """Generate and check domain suggestions ($0.003).
 
         Args:
-            query: Topic or keyword for domain suggestions.
-            tlds: Preferred TLDs (e.g., [".ai", ".dev"]).
+            keywords: Keyword list, or a string split on whitespace/commas.
+            tlds: Preferred TLDs (e.g., ["ai", "dev"]; leading dots are stripped).
+            max_check: Maximum number of generated domains to check (1-50).
 
         Returns:
-            Dict with query and suggestions list.
+            Dict with keywords, generated, checked, available (list of domains)
+            and allResults (list of {domain, available, ...}).
         """
-        body: dict = {"query": query}
+        if isinstance(keywords, str):
+            keywords = [k for k in re.split(r"[\s,]+", keywords) if k]
+        body: dict = {"keywords": list(keywords)}
         if tlds:
-            body["tlds"] = tlds
+            body["tlds"] = [t.lstrip(".").lower() for t in tlds]
+        if max_check is not None:
+            body["maxCheck"] = max_check
         return self._paid_post("/domains/suggest", body)
 
     def parse(

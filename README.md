@@ -54,8 +54,8 @@ Both clients have identical APIs — all 7 endpoints, full x402 payment flow, re
 | `render(url)` | $0.005 | JS-rendered page → markdown |
 | `extract(url)` | $0.008 | Structured data from 17+ sites |
 | `research(topic)` | $0.02 | Multi-source topic research |
-| `domains_check(domains)` | $0.008 | Domain availability check |
-| `domains_suggest(query)` | $0.008 | Domain name suggestions |
+| `domains_check(domains)` | $0.003 | Domain availability check |
+| `domains_suggest(keywords)` | $0.003 | Domain name suggestions |
 | `parse(source)` | $0.005 | Office document (docx/pptx/xlsx/pdf/…) → markdown |
 | `extractors()` | $0.001 | List available extractors |
 | `health()` | Free | API status check |
@@ -135,7 +135,7 @@ rendered = cf.render("https://app.uniswap.org")
 # Multi-source research ($0.02)
 report = cf.research("latest AI agent frameworks")
 
-# Domain availability ($0.008)
+# Domain availability ($0.003)
 domains = cf.domains_check(["coolstartup.com", "coolstartup.ai"])
 
 # List extractors ($0.001)
