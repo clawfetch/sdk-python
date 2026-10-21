@@ -258,6 +258,19 @@ class AsyncClawFetch:
             body["format"] = format
         return await self._paid_post("/parse", body)
 
+    async def company(self, domain: str) -> dict:
+        """Company enrichment from a domain ($0.02).
+
+        Deterministic parse of the live site, no LLM. Accepts a bare domain
+        (``"stripe.com"``) or any URL on the site.
+
+        Returns:
+            Dict with domain, url, name, description, logo, favicon, language,
+            socials, emails, phones, addresses, organization, techStack, pages,
+            fetchedPages and fetchedAt fields.
+        """
+        return await self._paid_post("/company", {"domain": domain})
+
     async def extractors(self) -> list[dict]:
         """List available extractors ($0.001).
 
