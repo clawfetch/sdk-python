@@ -412,6 +412,12 @@ class TestAsyncWireContracts:
             f"{MOCK_BASE_URL}/parse", {"base64": base64.b64encode(b"a,b\n1,2").decode(), "filename": "t.csv"})
 
 
+    @pytest.mark.asyncio
+    async def test_company_body(self):
+        assert await self._body(lambda cf: cf.company("vercel.com")) == (
+            f"{MOCK_BASE_URL}/company", {"domain": "vercel.com"})
+
+
 # ── Extractors Endpoint Tests ────────────────────────────────────
 
 

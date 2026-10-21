@@ -405,6 +405,11 @@ class TestWireContracts:
             f"{MOCK_BASE_URL}/parse", {"base64": base64.b64encode(b"a,b\n1,2").decode(), "filename": "t.csv"})
 
 
+    def test_company_body(self):
+        assert self._body(lambda cf: cf.company("vercel.com")) == (
+            f"{MOCK_BASE_URL}/company", {"domain": "vercel.com"})
+
+
 # ── Extractors Endpoint Tests ────────────────────────────────────
 
 
